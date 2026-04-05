@@ -7,6 +7,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, Music, Music2 } from 'lucide-react';
 
+// ✅ IMPORT your audio file directly - this is the key fix
+import bgmFile from '/bgm.mp3?url';
+
 const LYRICS = [
   { text: "Main tenu samjhawan ki", duration: 3500 },
   { text: "Na tere bina lagda ji", duration: 4500 },
@@ -14,14 +17,6 @@ const LYRICS = [
   { text: "Main karun intezar teraaa", duration: 4200 },
   { text: "Tu dil tui-yon jaan meri", duration: 4000 },
   { text: "Main tenu samjhawan.... ", duration: 4000 },
-];
-
-// WORKING AUDIO URLS - Pick one that works for you
-const WORKING_AUDIO_URLS = [
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-  "https://actions.google.com/sound/zip.mp3",
 ];
 
 // Star background component with shooting stars
@@ -128,9 +123,7 @@ export default function App() {
   const [phase, setPhase] = useState<'initial' | 'favor' | 'lyrics' | 'final'>('initial');
   const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  const [audioError, setAudioError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [currentAudioUrl, setCurrentAudioUrl] = useState(WORKING_AUDIO_URLS[0]);
 
   // Handle lyrics sequence
   useEffect(() => {
@@ -160,29 +153,11 @@ export default function App() {
         .then(() => {
           console.log("✅ Music is playing!");
           setIsMusicPlaying(true);
-          setAudioError(false);
         })
         .catch((error) => {
           console.error("❌ Failed to play music:", error);
-          setAudioError(true);
         });
     }
-  };
-
-  // Try next audio URL if current fails
-  const tryNextAudioUrl = () => {
-    const currentIndex = WORKING_AUDIO_URLS.indexOf(currentAudioUrl);
-    const nextIndex = (currentIndex + 1) % WORKING_AUDIO_URLS.length;
-    setCurrentAudioUrl(WORKING_AUDIO_URLS[nextIndex]);
-    setAudioError(false);
-    
-    // Try to play the new URL
-    setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.load();
-        playMusic();
-      }
-    }, 100);
   };
 
   // Handle button click for "Show me"
@@ -214,16 +189,13 @@ export default function App() {
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden px-4">
       <StarBackground />
       
-      {/* Audio element with working external URL */}
+      {/* ✅ Audio element using IMPORTED file - this fixes the path issue */}
       <audio 
         ref={audioRef} 
-        src={currentAudioUrl}
+        src={bgmFile}
         loop 
         preload="auto"
-        onError={(e) => {
-          console.error("Audio failed to load:", e);
-          setAudioError(true);
-        }}
+        onError={(e) => console.error("Audio failed to load:", e)}
         onCanPlayThrough={() => console.log("Audio loaded successfully")}
       />
 
@@ -315,33 +287,19 @@ export default function App() {
               )}
             </AnimatePresence>
             
-            {/* Music control buttons */}
-            <div className="mt-12 flex gap-4">
-              {!isMusicPlaying && (
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.05 }}
-                  onClick={playMusic}
-                  className="px-6 py-3 bg-pink-500/20 backdrop-blur-sm rounded-full text-pink-300 font-handwritten text-lg flex items-center gap-2 hover:bg-pink-500/30 transition-all"
-                >
-                  <Music size={20} />
-                  Click to Play Music 🎵
-                </motion.button>
-              )}
-              
-              {audioError && (
-                <motion.button
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.05 }}
-                  onClick={tryNextAudioUrl}
-                  className="px-6 py-3 bg-yellow-500/20 backdrop-blur-sm rounded-full text-yellow-300 font-handwritten text-lg flex items-center gap-2 hover:bg-yellow-500/30 transition-all"
-                >
-                  🔄 Try Another Music Source
-                </motion.button>
-              )}
-            </div>
+            {/* Music control button */}
+            {!isMusicPlaying && (
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.05 }}
+                onClick={playMusic}
+                className="mt-12 px-6 py-3 bg-pink-500/20 backdrop-blur-sm rounded-full text-pink-300 font-handwritten text-lg flex items-center gap-2 hover:bg-pink-500/30 transition-all"
+              >
+                <Music size={20} />
+                Click to Play Music 🎵
+              </motion.button>
+            )}
             
             {isMusicPlaying && (
               <motion.p
