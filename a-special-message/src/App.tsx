@@ -7,9 +7,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, Music, Music2 } from 'lucide-react';
 
-// ✅ IMPORT your audio file directly - this is the key fix
-import bgmFile from '/bgm.mp3?url';
-
 const LYRICS = [
   { text: "Main tenu samjhawan ki", duration: 3500 },
   { text: "Na tere bina lagda ji", duration: 4500 },
@@ -189,10 +186,10 @@ export default function App() {
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden px-4">
       <StarBackground />
       
-      {/* ✅ Audio element using IMPORTED file - this fixes the path issue */}
+      {/* Simple audio element with correct path for Vite */}
       <audio 
         ref={audioRef} 
-        src={bgmFile}
+        src="/bgm.mp3"
         loop 
         preload="auto"
         onError={(e) => console.error("Audio failed to load:", e)}
