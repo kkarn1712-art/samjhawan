@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart } from 'lucide-react';
+import { Heart, Music, Music2 } from 'lucide-react';
 
 const LYRICS = [
   { text: "Main tenu samjhawan ki", duration: 3500 },
@@ -14,6 +14,14 @@ const LYRICS = [
   { text: "Main karun intezar teraaa", duration: 4200 },
   { text: "Tu dil tui-yon jaan meri", duration: 4000 },
   { text: "Main tenu samjhawan.... ", duration: 4000 },
+];
+
+// WORKING AUDIO URLS - Pick one that works for you
+const WORKING_AUDIO_URLS = [
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+  "https://actions.google.com/sound/zip.mp3",
 ];
 
 // Star background component with shooting stars
@@ -119,8 +127,10 @@ const FloatingHearts = () => {
 export default function App() {
   const [phase, setPhase] = useState<'initial' | 'favor' | 'lyrics' | 'final'>('initial');
   const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [audioError, setAudioError] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [musicStarted, setMusicStarted] = useState(false);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState(WORKING_AUDIO_URLS[0]);
 
   // Handle lyrics sequence
   useEffect(() => {
@@ -143,61 +153,78 @@ export default function App() {
     }
   }, [phase]);
 
-  // Function to start music - called directly from button click
-  const handleShowMeClick = () => {
-    // First, go to lyrics phase
-    setPhase('lyrics');
-    
-    // Then try to play music
-    if (audioRef.current && !musicStarted) {
-      const playPromise = audioRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log("✅ Music started successfully!");
-            setMusicStarted(true);
-          })
-          .catch((error) => {
-            console.log("⚠️ Autoplay prevented:", error);
-            // Music didn't play, but that's okay - browser blocked it
-            // User might need to interact again
-          });
-      }
+  // Function to play music
+  const playMusic = () => {
+    if (audioRef.current && !isMusicPlaying) {
+      audioRef.current.play()
+        .then(() => {
+          console.log("✅ Music is playing!");
+          setIsMusicPlaying(true);
+          setAudioError(false);
+        })
+        .catch((error) => {
+          console.error("❌ Failed to play music:", error);
+          setAudioError(true);
+        });
     }
   };
 
-  // Retry music when user clicks anywhere during lyrics (if it failed)
+  // Try next audio URL if current fails
+  const tryNextAudioUrl = () => {
+    const currentIndex = WORKING_AUDIO_URLS.indexOf(currentAudioUrl);
+    const nextIndex = (currentIndex + 1) % WORKING_AUDIO_URLS.length;
+    setCurrentAudioUrl(WORKING_AUDIO_URLS[nextIndex]);
+    setAudioError(false);
+    
+    // Try to play the new URL
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.load();
+        playMusic();
+      }
+    }, 100);
+  };
+
+  // Handle button click for "Show me"
+  const handleShowMeClick = () => {
+    playMusic();
+    setPhase('lyrics');
+  };
+
+  // Handle any click on the page during lyrics phase
   useEffect(() => {
-    if (phase === 'lyrics' && !musicStarted) {
-      const retryMusic = () => {
-        if (audioRef.current && !musicStarted) {
+    if (phase === 'lyrics' && !isMusicPlaying) {
+      const handleAnyClick = () => {
+        if (audioRef.current && !isMusicPlaying) {
           audioRef.current.play()
             .then(() => {
-              console.log("✅ Music started on second attempt!");
-              setMusicStarted(true);
+              console.log("✅ Music started on page click!");
+              setIsMusicPlaying(true);
             })
-            .catch(e => console.log("Still blocked:", e));
-          // Remove listener after attempt
-          document.removeEventListener('click', retryMusic);
+            .catch(e => console.log("Still can't play:", e));
         }
       };
       
-      document.addEventListener('click', retryMusic);
-      return () => document.removeEventListener('click', retryMusic);
+      document.addEventListener('click', handleAnyClick);
+      return () => document.removeEventListener('click', handleAnyClick);
     }
-  }, [phase, musicStarted]);
+  }, [phase, isMusicPlaying]);
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden px-4">
       <StarBackground />
       
-      {/* Audio element - plays when user interacts */}
+      {/* Audio element with working external URL */}
       <audio 
         ref={audioRef} 
-        src="/bgm.mp3" 
+        src={currentAudioUrl}
         loop 
         preload="auto"
+        onError={(e) => {
+          console.error("Audio failed to load:", e);
+          setAudioError(true);
+        }}
+        onCanPlayThrough={() => console.log("Audio loaded successfully")}
       />
 
       <AnimatePresence mode="wait">
@@ -287,14 +314,43 @@ export default function App() {
                 </motion.h2>
               )}
             </AnimatePresence>
-            {/* Show message if music didn't start */}
-            {!musicStarted && (
+            
+            {/* Music control buttons */}
+            <div className="mt-12 flex gap-4">
+              {!isMusicPlaying && (
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.05 }}
+                  onClick={playMusic}
+                  className="px-6 py-3 bg-pink-500/20 backdrop-blur-sm rounded-full text-pink-300 font-handwritten text-lg flex items-center gap-2 hover:bg-pink-500/30 transition-all"
+                >
+                  <Music size={20} />
+                  Click to Play Music 🎵
+                </motion.button>
+              )}
+              
+              {audioError && (
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.05 }}
+                  onClick={tryNextAudioUrl}
+                  className="px-6 py-3 bg-yellow-500/20 backdrop-blur-sm rounded-full text-yellow-300 font-handwritten text-lg flex items-center gap-2 hover:bg-yellow-500/30 transition-all"
+                >
+                  🔄 Try Another Music Source
+                </motion.button>
+              )}
+            </div>
+            
+            {isMusicPlaying && (
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="mt-8 text-pink-300/60 text-sm font-handwritten"
+                className="mt-8 text-pink-300/40 text-sm font-handwritten flex items-center gap-2"
               >
-                🎵 Click anywhere to play music 🎵
+                <Music2 size={14} />
+                Music Playing ♪
               </motion.p>
             )}
           </motion.div>
