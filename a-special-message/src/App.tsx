@@ -120,6 +120,7 @@ export default function App() {
   const [phase, setPhase] = useState<'initial' | 'favor' | 'lyrics' | 'final'>('initial');
   const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [musicStarted, setMusicStarted] = useState(false);
 
   // Handle lyrics sequence
   useEffect(() => {
@@ -142,21 +143,61 @@ export default function App() {
     }
   }, [phase]);
 
-  const startMusic = () => {
-    if (audioRef.current) {
-      audioRef.current.play().catch(e => console.log("Audio play failed:", e));
-    }
+  // Function to start music - called directly from button click
+  const handleShowMeClick = () => {
+    // First, go to lyrics phase
     setPhase('lyrics');
+    
+    // Then try to play music
+    if (audioRef.current && !musicStarted) {
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log("✅ Music started successfully!");
+            setMusicStarted(true);
+          })
+          .catch((error) => {
+            console.log("⚠️ Autoplay prevented:", error);
+            // Music didn't play, but that's okay - browser blocked it
+            // User might need to interact again
+          });
+      }
+    }
   };
+
+  // Retry music when user clicks anywhere during lyrics (if it failed)
+  useEffect(() => {
+    if (phase === 'lyrics' && !musicStarted) {
+      const retryMusic = () => {
+        if (audioRef.current && !musicStarted) {
+          audioRef.current.play()
+            .then(() => {
+              console.log("✅ Music started on second attempt!");
+              setMusicStarted(true);
+            })
+            .catch(e => console.log("Still blocked:", e));
+          // Remove listener after attempt
+          document.removeEventListener('click', retryMusic);
+        }
+      };
+      
+      document.addEventListener('click', retryMusic);
+      return () => document.removeEventListener('click', retryMusic);
+    }
+  }, [phase, musicStarted]);
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden px-4">
       <StarBackground />
       
+      {/* Audio element - plays when user interacts */}
       <audio 
         ref={audioRef} 
         src="/bgm.mp3" 
         loop 
+        preload="auto"
       />
 
       <AnimatePresence mode="wait">
@@ -216,7 +257,7 @@ export default function App() {
             </h1>
             
             <button
-              onClick={startMusic}
+              onClick={handleShowMeClick}
               className="glow-button bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white px-10 py-4 rounded-full text-2xl transition-all transform hover:scale-110 active:scale-95 shadow-2xl shadow-pink-500/40 font-bold"
             >
               Show me 🤍
@@ -246,6 +287,16 @@ export default function App() {
                 </motion.h2>
               )}
             </AnimatePresence>
+            {/* Show message if music didn't start */}
+            {!musicStarted && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-8 text-pink-300/60 text-sm font-handwritten"
+              >
+                🎵 Click anywhere to play music 🎵
+              </motion.p>
+            )}
           </motion.div>
         )}
 
@@ -294,7 +345,7 @@ export default function App() {
       </AnimatePresence>
 
       <div className="fixed bottom-6 right-6 text-sm opacity-40 z-10 font-handwritten tracking-widest">
-      Made with ❤️ by @j3ryy.css
+        Made with ❤️ by @j3ryy.css
       </div>
     </div>
   );
